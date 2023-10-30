@@ -1,0 +1,3 @@
+[submodule "src/pac/fe"]
+	path = src/pac/fe
+	url = git@github.com:CoolDove/odin-fe.git
