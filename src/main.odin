@@ -33,13 +33,7 @@ main :: proc() {
         if obj == nil do break
         /* evaluate read object */
         result := fe.eval(fe_ctx, obj)
-        if buffer, err := mem.alloc_bytes(1024); err == .None {
-            length := fe.tostring(fe_ctx, result, raw_data(buffer[:]), 1024)
-            answer = transmute(string)runtime.Raw_String {
-                raw_data(buffer[:]),
-                auto_cast length,
-            }
-        }
+        answer = fe_tostring(fe_ctx, result, runtime.default_allocator())
 
         /* restore GC stack which would now contain both the read object and
         ** result from evaluation */
