@@ -1,1 +1,1 @@
-odin build ./src -out:pgy.exe
+odin build ./src -out:pgy.exe -debug

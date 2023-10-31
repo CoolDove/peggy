@@ -4,8 +4,12 @@ import "core:c"
 import "core:c/libc"
 import "core:os"
 import "core:mem"
+import "core:runtime"
 import "core:fmt"
 import "core:strings"
+
+import rl "vendor:raylib"
+
 import "pac/fe"
 
 
@@ -22,17 +26,42 @@ main :: proc() {
     gc := fe.savegc(fe_ctx)
 
     reader : SourceReader
-    reader.src = "(+ 12 (print (hello 24)))"
+    reader.src = "(hello 24)"
+    answer : string
     for {
         obj :^fe.Object= fe.read(fe_ctx, auto_cast fe_read_source, &reader)
         if obj == nil do break
         /* evaluate read object */
-        fe.eval(fe_ctx, obj)
+        result := fe.eval(fe_ctx, obj)
+        if buffer, err := mem.alloc_bytes(1024); err == .None {
+            length := fe.tostring(fe_ctx, result, raw_data(buffer[:]), 1024)
+            answer = transmute(string)runtime.Raw_String {
+                raw_data(buffer[:]),
+                auto_cast length,
+            }
+        }
 
         /* restore GC stack which would now contain both the read object and
         ** result from evaluation */
         fe.restoregc(fe_ctx, gc);
     }
+
+    fmt.printf("End")
+
+    rl.InitWindow(1600, 900, "Peggy")
+    rl.SetWindowState({ rl.ConfigFlag.WINDOW_RESIZABLE })
+    rl.SetTargetFPS(75)
+
+    for !rl.WindowShouldClose() {
+        rl.BeginDrawing()
+        rl.DrawText(strings.clone_to_cstring(answer, context.temp_allocator), 10,10, 45, rl.RED)
+        rl.EndDrawing()
+
+        free_all(context.temp_allocator)
+    }
+
+    rl.CloseWindow()
+    fmt.printf("End")
 }
 
 install_functions :: proc() {
@@ -46,13 +75,16 @@ cfunc_add2 :: proc(ctx:^fe.Context, args: ^fe.Object) -> ^fe.Object {
     return fe.number(fe_ctx, a+2)
 }
 cfunc_hello :: proc(ctx:^fe.Context, args: ^fe.Object) -> ^fe.Object {
+    context.allocator = runtime.default_allocator()
     argsptr := args
     buffer : [1024]u8
     length := fe.tostring(ctx, fe.nextarg(ctx, &argsptr), raw_data(buffer[:]), 1024)
-    fmt.printf("len: {}\n", length)
-    name := (string)(buffer[:length])
-    fmt.printf("Hello: {}\n", name)
-    return fe.number(fe_ctx, 1)
+    using strings, runtime
+    sb : Builder; builder_init(&sb); defer builder_destroy(&sb)
+    write_string(&sb, "Hello, ")
+    write_bytes(&sb, buffer[:length])
+    write_byte(&sb, 0)
+    return fe.string(fe_ctx, cstring((transmute(Raw_String)to_string(sb)).data))
 }
 
 SourceReader :: struct {
