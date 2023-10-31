@@ -71,14 +71,9 @@ cfunc_add2 :: proc(ctx:^fe.Context, args: ^fe.Object) -> ^fe.Object {
 cfunc_hello :: proc(ctx:^fe.Context, args: ^fe.Object) -> ^fe.Object {
     context.allocator = runtime.default_allocator()
     argsptr := args
-    buffer : [1024]u8
-    length := fe.tostring(ctx, fe.nextarg(ctx, &argsptr), raw_data(buffer[:]), 1024)
-    using strings, runtime
-    sb : Builder; builder_init(&sb); defer builder_destroy(&sb)
-    write_string(&sb, "Hello, ")
-    write_bytes(&sb, buffer[:length])
-    write_byte(&sb, 0)
-    return fe.string(fe_ctx, cstring((transmute(Raw_String)to_string(sb)).data))
+    name := fe_tostring(ctx, fe.nextarg(ctx, &argsptr))
+    str := fmt.aprintf("Hello, {}", name); defer delete(str)
+    return fe_string(fe_ctx, str)
 }
 
 SourceReader :: struct {
